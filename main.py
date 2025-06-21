@@ -10,6 +10,8 @@ from supabase import create_client
 from utils.job_matcher import run_bm25_match
 from utils.chatbot_runner import analyze_matches
 
+port = int(os.environ.get("PORT", 8000))
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
