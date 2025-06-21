@@ -7,7 +7,7 @@ import json
 from dotenv import load_dotenv
 from datetime import datetime
 from supabase import create_client
-from utils.job_matcher import run_bm25_match
+from utils.job_matcher import run_bm25_match, startup_load
 from utils.chatbot_runner import analyze_matches
 
 port = int(os.environ.get("PORT", 8000))
@@ -33,6 +33,11 @@ class ProfileRequest(BaseModel):
     intern_name: str
     students: List[Dict[str, Any]]
     interests: str
+
+@app.on_event("startup")
+def load_job_data():
+    # this will populate the globals once when the app boots
+    startup_load()
 
 @app.get("/")
 def read_root():
