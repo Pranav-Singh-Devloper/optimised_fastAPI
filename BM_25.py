@@ -95,16 +95,16 @@ def build_or_load_bm25(jobs, cache_dir="."):
             job_index = pickle.load(f2)
         print("✅ Loaded BM25 model and index from cache.")
         return bm25, job_index
+    else: 
+        job_texts, job_index = preprocess_jobs(jobs)
+        bm25 = build_bm25_model(job_texts)
 
-    job_texts, job_index = preprocess_jobs(jobs)
-    bm25 = build_bm25_model(job_texts)
+        with open(bm25_path, "wb") as f1, open(index_path, "wb") as f2:
+            pickle.dump(bm25, f1)
+            pickle.dump(job_index, f2)
 
-    with open(bm25_path, "wb") as f1, open(index_path, "wb") as f2:
-        pickle.dump(bm25, f1)
-        pickle.dump(job_index, f2)
-
-    print("✅ Built and cached BM25 model and index.")
-    return bm25, job_index
+        print("✅ Built and cached BM25 model and index.")
+        return bm25, job_index
 
 
 # -----------------------------
