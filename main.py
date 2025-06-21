@@ -58,7 +58,7 @@ def match_students(request: ProfileRequest):
         supabase.table("v0001_logs").insert({
             "timestamp": datetime.utcnow().isoformat(),
             "intern_name": request.intern_name,
-            "student_profile": json.dumps(request.students),
+            "student_profile": request.students,
             "bm25_matches": matches,
             "llm_analysis": analysis
         }).execute()
