@@ -1,0 +1,27 @@
+# Ignore Python cache
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environments
+myenv/
+env/
+.venv/
+
+# Ignore secrets/configs
+.env
+*.toml
+
+# Ignore data and model artifacts
+*.jsonl
+students.json
+
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore Docker artifacts (optional)
+*.log
+*.pid
+
+# Ignore OS files
+.DS_Store
