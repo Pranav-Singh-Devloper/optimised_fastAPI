@@ -14,6 +14,7 @@ try:
 except LookupError:
     nltk.download("punkt")
 
+
 # -----------------------------
 # Data Loading Utilities
 # -----------------------------
@@ -24,9 +25,10 @@ def load_students(filepath='students.json'):
         return json.load(file)
 
 def load_jsonl_file(filepath):
-    """Load jobs from .jsonl file"""
+    """Load jobs from a .jsonl file."""
     with open(filepath, 'r') as file:
         return [json.loads(line.strip()) for line in file]
+
 
 # -----------------------------
 # Preprocessing
@@ -47,7 +49,6 @@ def preprocess_jobs(jobs):
         tags = job.get('tagsAndSkills', '').replace(',', ' ')
         raw_description = job.get('jobDescription', '')
 
-        # Convert HTML to plain text
         soup = BeautifulSoup(raw_description, 'html.parser')
         plain_description = soup.get_text(separator=' ', strip=True)
 
@@ -69,6 +70,7 @@ def preprocess_jobs(jobs):
 
     return job_texts, job_index
 
+
 # -----------------------------
 # BM25 Core
 # -----------------------------
@@ -79,35 +81,34 @@ def build_bm25_model(job_texts):
 
 def build_or_load_bm25(jobs, cache_dir="."):
     """
-    Check if cached BM25 model and tokenized corpus exist.
-    If yes, load from disk; else, build and cache them.
+    Load cached BM25 model and job index if available, else build and save them.
     Returns:
         bm25: BM25Okapi instance
         job_index: Index of jobs
     """
     bm25_path = os.path.join(cache_dir, "bm25_model.pkl")
-    corpus_path = os.path.join(cache_dir, "job_corpus.pkl")
+    index_path = os.path.join(cache_dir, "job_index.pkl")
 
-    if os.path.exists(bm25_path) and os.path.exists(corpus_path):
-        with open(bm25_path, "rb") as f1, open(corpus_path, "rb") as f2:
+    if os.path.exists(bm25_path) and os.path.exists(index_path):
+        with open(bm25_path, "rb") as f1, open(index_path, "rb") as f2:
             bm25 = pickle.load(f1)
             job_index = pickle.load(f2)
-        print("✅ Loaded BM25 model and corpus from cache.")
+        print("✅ Loaded BM25 model and index from cache.")
         return bm25, job_index
 
-    # Preprocess and build model
     job_texts, job_index = preprocess_jobs(jobs)
     bm25 = build_bm25_model(job_texts)
 
-    with open(bm25_path, "wb") as f1, open(corpus_path, "wb") as f2:
+    with open(bm25_path, "wb") as f1, open(index_path, "wb") as f2:
         pickle.dump(bm25, f1)
         pickle.dump(job_index, f2)
 
-    print("✅ Built and cached BM25 model and corpus.")
+    print("✅ Built and cached BM25 model and index.")
     return bm25, job_index
 
+
 # -----------------------------
-# Matching
+# Matching Logic
 # -----------------------------
 
 def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
@@ -123,7 +124,6 @@ def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
         last_name = student.get('last_name', '')
         student_name = f"{first_name} {last_name}".strip() or "Unnamed"
 
-        # Extract preferences, skills, interests
         job_preferences = student.get('job_preferences', {})
         job_preferences_list = []
         job_roles = []
@@ -144,18 +144,15 @@ def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
         skills = student.get('skills', [])
         interests = student.get('interests', [])
 
-        # Weight job roles more heavily
         query_terms = job_roles * 5 + job_preferences_list * 2 + skills + interests
         if not query_terms:
             all_matches[student_name] = []
             continue
 
-        # Tokenize and clean query
         query = " ".join(query_terms)
         query_tokens = word_tokenize(query.lower())
         query_tokens = [t for t in query_tokens if t.isalpha()]
 
-        # Compute BM25 scores
         scores = bm25.get_scores(query_tokens)
         ranked = sorted(zip(job_index, scores), key=lambda x: x[1], reverse=True)
         top_matches = ranked[:top_n]
@@ -180,16 +177,16 @@ def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
 
     return all_matches
 
+
 # -----------------------------
-# Script mode (optional testing)
+# Script Mode: Local Test
 # -----------------------------
 
 if __name__ == '__main__':
     students = load_students('students.json')
     jobs = []
     for part_file in ["part_1.jsonl", "part_2.jsonl", "part_3.jsonl"]:
-        data = load_jsonl_file(part_file)
-        jobs.extend(data)
+        jobs.extend(load_jsonl_file(part_file))
 
     print(f"Total jobs loaded: {len(jobs)}")
     bm25, job_index = build_or_load_bm25(jobs)
