@@ -32,6 +32,11 @@ class ProfileRequest(BaseModel):
     students: List[Dict[str, Any]]
     interests: str
 
+@app.get("/")
+def read_root():
+    return {"message": "🎉 FastAPI app is live on Render!"}
+
+
 @app.post("/match")
 def match_students(request: ProfileRequest):
     try:
