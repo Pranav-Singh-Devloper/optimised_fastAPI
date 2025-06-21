@@ -42,28 +42,47 @@ def read_root():
 @app.post("/match")
 def match_students(request: ProfileRequest):
     try:
+        print("✅ Received POST request to /match")
+        print("📦 Raw intern name:", request.intern_name)
+        print("👨‍🎓 Number of students received:", len(request.students))
+        print("💡 Interests string:", request.interests)
+
         # Add interests
         for student in request.students:
             student.setdefault("job_preferences", {})["interests"] = [
                 x.strip() for x in request.interests.split("+")
             ]
 
+        print("✅ Enriched students with interests:")
+        print(json.dumps(request.students, indent=2))  # Pretty-print for debugging
+
         # Match jobs
         matches, pickle_path = run_bm25_match(request.students)
+        print("🎯 BM25 Matching complete. Match keys:", list(matches.keys()))
+        print("📁 Pickle file saved at:", pickle_path)
 
         # LLM reasoning
         analysis = analyze_matches(pickle_path, request.students)
+        print("🧠 LLM Analysis Result:", analysis[:200])  # Preview first 200 chars
 
         # Upload to Supabase
-        supabase.table("v0001_logs").insert({
+        insert_payload = {
             "timestamp": datetime.utcnow().isoformat(),
             "intern_name": request.intern_name,
-            "student_profile": request.students,
+            "student_profile": json.dumps(request.students),
             "bm25_matches": matches,
             "llm_analysis": analysis
-        }).execute()
+        }
+
+        print("📤 Uploading to Supabase:")
+        print(json.dumps(insert_payload, indent=2))
+
+        supabase.table("v0001_logs").insert(insert_payload).execute()
+        print("✅ Inserted into Supabase successfully!")
 
         return {"success": True, "llm_analysis": analysis}
 
     except Exception as e:
+        print("❌ ERROR OCCURRED:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
