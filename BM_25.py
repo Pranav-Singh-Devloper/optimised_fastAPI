@@ -116,66 +116,71 @@ def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
     For each student, compute BM25 scores against all jobs and return structured match data.
     Returns a dictionary with student names as keys and a list of matches as values.
     """
-    all_matches = {}
+    try:
+        all_matches = {}
 
-    for student in students:
-        # Construct full name (fallback to "Unnamed" if missing)
-        first_name = student.get('first_name', '')
-        last_name = student.get('last_name', '')
-        student_name = f"{first_name} {last_name}".strip() or "Unnamed"
+        for student in students:
+            # Construct full name (fallback to "Unnamed" if missing)
+            first_name = student.get('first_name', '')
+            last_name = student.get('last_name', '')
+            student_name = f"{first_name} {last_name}".strip() or "Unnamed"
 
-        job_preferences = student.get('job_preferences', {})
-        job_preferences_list = []
-        job_roles = []
+            job_preferences = student.get('job_preferences', {})
+            job_preferences_list = []
+            job_roles = []
 
-        if isinstance(job_preferences, dict):
-            for key, value in job_preferences.items():
-                if isinstance(value, list):
-                    if key.lower() in ['job_roles', 'job_titles']:
-                        job_roles.extend(value)
-                    else:
-                        job_preferences_list.extend(value)
-                elif isinstance(value, str):
-                    if key.lower() in ['job_roles', 'job_titles']:
-                        job_roles.append(value)
-                    else:
-                        job_preferences_list.append(value)
+            if isinstance(job_preferences, dict):
+                for key, value in job_preferences.items():
+                    if isinstance(value, list):
+                        if key.lower() in ['job_roles', 'job_titles']:
+                            job_roles.extend(value)
+                        else:
+                            job_preferences_list.extend(value)
+                    elif isinstance(value, str):
+                        if key.lower() in ['job_roles', 'job_titles']:
+                            job_roles.append(value)
+                        else:
+                            job_preferences_list.append(value)
 
-        skills = student.get('skills', [])
-        interests = student.get('interests', [])
+            skills = student.get('skills', [])
+            interests = student.get('interests', [])
 
-        query_terms = job_roles * 5 + job_preferences_list * 2 + skills + interests
-        if not query_terms:
-            all_matches[student_name] = []
-            continue
+            query_terms = job_roles * 5 + job_preferences_list * 2 + skills + interests
+            if not query_terms:
+                all_matches[student_name] = []
+                continue
 
-        query = " ".join(query_terms)
-        query_tokens = word_tokenize(query.lower())
-        query_tokens = [t for t in query_tokens if t.isalpha()]
+            query = " ".join(query_terms)
+            query_tokens = word_tokenize(query.lower())
+            query_tokens = [t for t in query_tokens if t.isalpha()]
 
-        scores = bm25.get_scores(query_tokens)
-        ranked = sorted(zip(job_index, scores), key=lambda x: x[1], reverse=True)
-        top_matches = ranked[:top_n]
+            scores = bm25.get_scores(query_tokens)
+            ranked = sorted(zip(job_index, scores), key=lambda x: x[1], reverse=True)
+            top_matches = ranked[:top_n]
 
-        student_matches = []
-        for idx, score in top_matches:
-            job = jobs[idx]
-            company = job.get('companyName', 'Unknown Company')
-            title = job.get('title', 'No Title')
-            description_html = job.get('jobDescription', '')
-            description_text = BeautifulSoup(description_html, 'html.parser').get_text(separator=' ', strip=True)
-            snippet = description_text[:150] + ('...' if len(description_text) > 150 else '')
+            student_matches = []
+            for idx, score in top_matches:
+                job = jobs[idx]
+                company = job.get('companyName', 'Unknown Company')
+                title = job.get('title', 'No Title')
+                description_html = job.get('jobDescription', '')
+                description_text = BeautifulSoup(description_html, 'html.parser').get_text(separator=' ', strip=True)
+                snippet = description_text[:150] + ('...' if len(description_text) > 150 else '')
 
-            student_matches.append({
-                'company': company,
-                'title': title,
-                'score': float(score),
-                'snippet': snippet
-            })
+                student_matches.append({
+                    'company': company,
+                    'title': title,
+                    'score': float(score),
+                    'snippet': snippet
+                })
 
-        all_matches[student_name] = student_matches
+            all_matches[student_name] = student_matches
 
-    return all_matches
+        return all_matches
+    except Exception as e:
+        print("❌ Error during match_students:", str(e))
+        print("🔍 Traceback:", format_exc())  # Logs full traceback
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # -----------------------------
