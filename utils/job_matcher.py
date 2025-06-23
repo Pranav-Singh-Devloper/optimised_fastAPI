@@ -1,11 +1,10 @@
 # utils/job_matcher.py
 
 import os
-import json
 import pickle
-from BM_25 import build_or_load_bm25, match_students_to_jobs
+from BM_25 import build_or_load_bm25, match_students_to_jobs, load_jobs_from_mongo
 
-# Module‑level caches
+# Module-level caches
 _JOBS = None
 _BM25 = None
 _JOB_INDEX = None
@@ -20,28 +19,18 @@ def startup_load(base_dir=None):
     if base_dir is None:
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
-    # 1) Load and validate JSONL job files
-    job_files = ["part_1.jsonl", "part_2.jsonl", "part_3.jsonl"]
-    jobs = []
-    for fname in job_files:
-        path = os.path.join(base_dir, fname)
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Job file missing: {path}")
-        with open(path, 'r', encoding='utf-8') as f:
-            for line_no, line in enumerate(f, start=1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    jobs.append(json.loads(line))
-                except json.JSONDecodeError as je:
-                    raise ValueError(f"Invalid JSON in {fname} at line {line_no}: {je}")
+    # 1) Load jobs from MongoDB Atlas instead of local JSONL
+    try:
+        jobs = load_jobs_from_mongo()
+    except Exception as e:
+        raise RuntimeError(f"▸ failed to load jobs from MongoDB: {e!s}")
 
     _JOBS = jobs
 
     # 2) Build or load BM25 index & model
-    _BM25, _JOB_INDEX = build_or_load_bm25(jobs, cache_dir=base_dir)
+    _BM25, _JOB_INDEX = build_or_load_bm25(_JOBS, cache_dir=base_dir)
     print("✅ Jobs and BM25 model loaded in startup_load()")
+
 
 def run_bm25_match(student_data):
     """
@@ -68,6 +57,6 @@ def run_bm25_match(student_data):
         return matches, pkl_path
 
     except Exception as e:
-        # Log and re‑raise so you see a clear error in your logs
+        # Log and re-raise so you see a clear error in your logs
         print("❌ run_bm25_match failed:", str(e))
         raise

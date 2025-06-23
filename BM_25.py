@@ -7,6 +7,7 @@ from rank_bm25 import BM25Okapi
 import nltk
 from nltk.tokenize import word_tokenize
 from bs4 import BeautifulSoup
+from pymongo import MongoClient
 
 # Ensure required NLTK data is downloaded
 try:
@@ -24,10 +25,27 @@ def load_students(filepath='students.json'):
     with open(filepath, 'r') as file:
         return json.load(file)
 
-def load_jsonl_file(filepath):
-    """Load jobs from a .jsonl file."""
-    with open(filepath, 'r') as file:
-        return [json.loads(line.strip()) for line in file]
+def load_jobs_from_mongo(uri=None, db_name=None, coll_name=None):
+    """
+    Load all job documents from MongoDB Atlas.
+    Expects each document to have at least 'title', 'tagsAndSkills', 'jobDescription', etc.
+    """
+    # fallback to environment variables if not passed explicitly
+    uri       = uri       or os.getenv("MONGODB_URI")
+    db_name   = db_name   or os.getenv("MONGODB_DB", "your_default_db")
+    coll_name = coll_name or os.getenv("MONGODB_COLL", "your_default_coll")
+
+    if not uri:
+        raise ValueError("MongoDB URI must be provided via parameter or MONGODB_URI env var")
+
+    client = MongoClient(uri)
+    db     = client[db_name]
+    coll   = db[coll_name]
+
+    jobs = list(coll.find({}))
+    client.close()
+    print(f"✅ Loaded {len(jobs)} jobs from MongoDB collection `{db_name}.{coll_name}`.")
+    return jobs
 
 
 # -----------------------------
@@ -189,9 +207,7 @@ def match_students_to_jobs(students, jobs, bm25, job_index, top_n=10):
 
 if __name__ == '__main__':
     students = load_students('students.json')
-    jobs = []
-    for part_file in ["part_1.jsonl", "part_2.jsonl", "part_3.jsonl"]:
-        jobs.extend(load_jsonl_file(part_file))
+    jobs = load_jobs_from_mongo()
 
     print(f"Total jobs loaded: {len(jobs)}")
     bm25, job_index = build_or_load_bm25(jobs)
