@@ -8,12 +8,16 @@ import nltk
 from nltk.tokenize import word_tokenize
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
+from fastapi import HTTPException
+from traceback import format_exc
+
 
 # Ensure required NLTK data is downloaded
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
+for resource in ["punkt", "punkt_tab"]:
+    try:
+        nltk.data.find(f"tokenizers/{resource}")
+    except LookupError:
+        nltk.download(resource, quiet=True)
 
 
 # -----------------------------
